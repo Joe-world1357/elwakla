@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Product, Location, BranchPriceOverride } from '../../types';
 import { db } from '../../services/db';
 import { Modal } from '../common/Modal';
-import { Tag, Check, Trash2, ArrowRight, Info, AlertCircle } from 'lucide-react';
+import { Tag, Check, Trash2, ArrowRight, Info, AlertCircle, Lock } from 'lucide-react';
+import { UserPermissions } from '../../services/auth';
 
 interface BranchPriceOverrideModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface BranchPriceOverrideModalProps {
   product: Product | null;
   locations: Location[];
   defaultBranchId: string;
+  permissions?: UserPermissions;
   onRefresh: () => void;
 }
 
@@ -19,12 +21,15 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
   product,
   locations,
   defaultBranchId,
+  permissions,
   onRefresh,
 }) => {
   const [selectedBranchId, setSelectedBranchId] = useState<string>(defaultBranchId);
   const [overrideRetail, setOverrideRetail] = useState<string>('');
   const [overrideWholesale, setOverrideWholesale] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  const canEdit = permissions ? permissions.canSetPriceOverrides : true;
 
   useEffect(() => {
     if (product) {
@@ -52,11 +57,37 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
 
   if (!product) return null;
 
+  if (locations.length === 0) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Branch-Specific Price Override"
+        subtitle={`Configure localized pricing override for ${product.sku}`}
+        maxWidthClass="max-w-md"
+      >
+        <div className="p-4 text-center space-y-3">
+          <p className="text-xs text-slate-500">
+            No physical branches are currently registered in LocalStorage. Please create a retail branch or warehouse before configuring branch-specific price overrides.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Close
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   const currentBranch = locations.find((l) => l.id === selectedBranchId) || locations[0];
-  const existingOverride = db.getProductPriceOverride(selectedBranchId, product.id);
+  const existingOverride = selectedBranchId ? db.getProductPriceOverride(selectedBranchId, product.id) : undefined;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) return;
     setError(null);
 
     const retailVal = overrideRetail.trim() ? parseFloat(overrideRetail) : undefined;
@@ -83,6 +114,7 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
   };
 
   const handleRemoveOverride = () => {
+    if (!canEdit) return;
     db.deletePriceOverride(selectedBranchId, product.id);
     setOverrideRetail('');
     setOverrideWholesale('');
@@ -102,45 +134,47 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
         {error && (
           <div className="rounded-lg bg-red-50 p-3 border border-red-200 flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-red-700 leading-relaxed">{error}</div>
+            <div className="text-xs text-red-700">{error}</div>
           </div>
         )}
 
-        {/* Product summary card */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex items-start justify-between">
-          <div>
-            <h4 className="font-bold text-slate-900 text-sm">{product.nameEn}</h4>
-            <p className="text-xs text-slate-500 font-ar mt-0.5" dir="rtl">{product.nameAr}</p>
-            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
-              <span className="font-mono font-semibold text-slate-700">{product.sku}</span>
-              <span>·</span>
-              <span>Barcode: {product.primaryBarcode}</span>
-              <span>·</span>
-              <span>UOM: {product.unitOfMeasure}</span>
-            </div>
+        {!canEdit && (
+          <div className="rounded-lg bg-amber-50 p-3 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Read-Only: Your current role cannot modify branch price overrides.</span>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Default Catalog Price
+        )}
+
+        {/* Product Reference Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
+              {product.sku}
             </span>
-            <div className="font-mono text-xs font-bold text-slate-800 mt-0.5">
-              Retail: <span className="text-indigo-600">${product.defaultRetailPrice.toFixed(2)}</span>
+            <p className="text-xs font-bold text-slate-800 mt-1">{product.nameEn}</p>
+            <p className="text-[11px] text-slate-500 font-ar" dir="rtl">{product.nameAr}</p>
+          </div>
+          <div className="text-right text-xs font-mono space-y-0.5">
+            <div>
+              <span className="text-slate-400 text-[10px]">Catalog Retail: </span>
+              <strong className="text-slate-800">${product.defaultRetailPrice.toFixed(2)}</strong>
             </div>
-            <div className="font-mono text-[11px] text-slate-500">
-              Wholesale: ${product.defaultWholesalePrice.toFixed(2)}
+            <div>
+              <span className="text-slate-400 text-[10px]">Catalog Wholesale: </span>
+              <strong className="text-slate-800">${product.defaultWholesalePrice.toFixed(2)}</strong>
             </div>
           </div>
         </div>
 
-        {/* Select Target Branch */}
+        {/* Branch Selector */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-            Target Branch / Location <span className="text-red-500">*</span>
+            Target Branch / Location
           </label>
           <select
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
+            className="block w-full rounded-md border border-slate-300 px-3 py-2 text-xs text-slate-900 bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           >
             {locations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -150,59 +184,47 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
           </select>
         </div>
 
-        {/* Price Fallback Explainer (FR-PRD-07) */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-amber-800">
-          <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        {/* Override Fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
-            <p className="font-semibold text-amber-900">
-              Price Fallback Rule (FR-PRD-07)
-            </p>
-            <p className="mt-0.5">
-              When an override is set for <span className="font-semibold">{currentBranch?.code}</span>, this branch displays the override price. If left empty or cleared, the catalog automatically falls back to default prices ($
-              {product.defaultRetailPrice.toFixed(2)} retail / ${product.defaultWholesalePrice.toFixed(2)} wholesale).
-            </p>
-          </div>
-        </div>
-
-        {/* Override Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
               Override Retail Price ($)
             </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-sm">
+            <div className="relative rounded-md shadow-2xs">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400 font-mono">
                 $
               </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={!canEdit}
                 value={overrideRetail}
                 onChange={(e) => setOverrideRetail(e.target.value)}
                 placeholder={product.defaultRetailPrice.toFixed(2)}
-                className="block w-full rounded-md border border-slate-300 pl-7 pr-3 py-2 text-sm text-slate-900 font-mono tabular-nums shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="block w-full rounded-md border border-slate-300 pl-7 pr-3 py-2 text-sm text-slate-900 font-mono tabular-nums shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
               />
             </div>
             <p className="text-[10px] text-slate-400 mt-1">Leave blank to use default (${product.defaultRetailPrice.toFixed(2)})</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
               Override Wholesale Price ($)
             </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-sm">
+            <div className="relative rounded-md shadow-2xs">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400 font-mono">
                 $
               </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={!canEdit}
                 value={overrideWholesale}
                 onChange={(e) => setOverrideWholesale(e.target.value)}
                 placeholder={product.defaultWholesalePrice.toFixed(2)}
-                className="block w-full rounded-md border border-slate-300 pl-7 pr-3 py-2 text-sm text-slate-900 font-mono tabular-nums shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="block w-full rounded-md border border-slate-300 pl-7 pr-3 py-2 text-sm text-slate-900 font-mono tabular-nums shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500"
               />
             </div>
             <p className="text-[10px] text-slate-400 mt-1">Leave blank to use default (${product.defaultWholesalePrice.toFixed(2)})</p>
@@ -217,20 +239,22 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
               {existingOverride.overrideRetailPrice ?? product.defaultRetailPrice} / Wholesale $
               {existingOverride.overrideWholesalePrice ?? product.defaultWholesalePrice}
             </span>
-            <button
-              type="button"
-              onClick={handleRemoveOverride}
-              className="text-red-600 hover:text-red-700 font-medium inline-flex items-center gap-1 hover:underline ml-2"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear Override</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleRemoveOverride}
+                className="text-red-600 hover:text-red-700 font-medium inline-flex items-center gap-1 hover:underline ml-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear Override</span>
+              </button>
+            )}
           </div>
         )}
 
         {/* Action Buttons */}
         <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-          {existingOverride ? (
+          {existingOverride && canEdit ? (
             <button
               type="button"
               onClick={handleRemoveOverride}
@@ -249,15 +273,17 @@ export const BranchPriceOverrideModal: React.FC<BranchPriceOverrideModalProps> =
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
             >
-              Cancel
+              {canEdit ? 'Cancel' : 'Close'}
             </button>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md px-4 py-2 text-xs transition-colors shadow-xs"
-            >
-              <Check className="w-4 h-4" />
-              <span>Save Branch Price</span>
-            </button>
+            {canEdit && (
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md px-4 py-2 text-xs transition-colors shadow-xs"
+              >
+                <Check className="w-4 h-4" />
+                <span>Save Branch Price</span>
+              </button>
+            )}
           </div>
         </div>
       </form>

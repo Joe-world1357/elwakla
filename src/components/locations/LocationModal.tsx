@@ -43,7 +43,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({
       setPhone(locationToEdit.phone);
       setIsActive(locationToEdit.isActive);
     } else {
-      setCode('BR-GIZA-01');
+      setCode('');
       setNameAr('');
       setNameEn('');
       setType('RETAIL_BRANCH');

@@ -13,11 +13,14 @@ import {
   Layers,
 } from 'lucide-react';
 
+import { UserPermissions } from '../../services/auth';
+
 interface BranchInventoryDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   location: Location | null;
   products: Product[];
+  permissions: UserPermissions;
   onRefresh: () => void;
 }
 
@@ -26,6 +29,7 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
   onClose,
   location,
   products,
+  permissions,
   onRefresh,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,13 +102,25 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
         {/* Branch Context Banner & Isolation Explainer */}
         <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
           <Layers className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-indigo-900">
-            <p className="font-semibold text-indigo-950">
-              Isolated Stock Counts Active (FR-LOC-06)
-            </p>
+          <div className="text-xs text-indigo-900 w-full">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-indigo-950">
+                Isolated Stock Counts Active (FR-LOC-06)
+              </p>
+              {!permissions.canAdjustInventory && (
+                <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded text-[10px] font-semibold">
+                  Read-Only Mode
+                </span>
+              )}
+            </div>
             <p className="mt-0.5 text-indigo-800">
               Stock values edited in this drawer affect only <span className="font-bold">{location.code}</span> in <code className="font-mono text-[11px] bg-white px-1 py-0.5 rounded">alwakala_branch_inventory</code>. Other branches retain their isolated counts.
             </p>
+            {!permissions.canAdjustInventory && (
+              <p className="mt-1 text-[11px] text-amber-800 font-medium bg-amber-50/80 border border-amber-200/60 p-1.5 rounded">
+                🔒 You are currently viewing in read-only mode. Modifying inventory requires ROLE_WH_KEEPER, ROLE_BRANCH_MGR, ROLE_PURCHASER, or ROLE_ADMIN.
+              </p>
+            )}
             <div className="mt-2.5 flex items-center gap-4 text-xs font-mono">
               <span className="font-semibold text-indigo-950">
                 Total On-Hand: <span className="tabular-nums font-bold">{totalOnHandInBranch}</span>
@@ -155,7 +171,9 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
               {filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                    No products found matching filter.
+                    {products.length === 0
+                      ? 'No products registered in catalog yet. Add products to catalog first.'
+                      : 'No products found matching filter.'}
                   </td>
                 </tr>
               ) : (
@@ -196,9 +214,14 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
                         <input
                           type="number"
                           min="0"
+                          disabled={!permissions.canAdjustInventory}
                           value={currentOnHand}
                           onChange={(e) => handleStockInputChange(prod.id, 'onHand', e.target.value)}
-                          className="w-18 text-center px-2 py-1 border border-slate-300 rounded-md font-mono text-xs tabular-nums focus:outline-hidden focus:border-indigo-500"
+                          className={`w-18 text-center px-2 py-1 border rounded-md font-mono text-xs tabular-nums focus:outline-hidden ${
+                            permissions.canAdjustInventory
+                              ? 'border-slate-300 focus:border-indigo-500 bg-white'
+                              : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </td>
 
@@ -208,9 +231,14 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
                           type="number"
                           min="0"
                           max={currentOnHand}
+                          disabled={!permissions.canAdjustInventory}
                           value={currentReserved}
                           onChange={(e) => handleStockInputChange(prod.id, 'reserved', e.target.value)}
-                          className="w-18 text-center px-2 py-1 border border-slate-300 rounded-md font-mono text-xs tabular-nums focus:outline-hidden focus:border-indigo-500"
+                          className={`w-18 text-center px-2 py-1 border rounded-md font-mono text-xs tabular-nums focus:outline-hidden ${
+                            permissions.canAdjustInventory
+                              ? 'border-slate-300 focus:border-indigo-500 bg-white'
+                              : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </td>
 
@@ -229,29 +257,33 @@ export const BranchInventoryDrawer: React.FC<BranchInventoryDrawerProps> = ({
 
                       {/* Action */}
                       <td className="px-3 py-3.5 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleSaveStock(prod.id)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors shadow-2xs ${
-                            successSavedId === prod.id
-                              ? 'bg-emerald-600 text-white'
-                              : isModified
-                              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          }`}
-                        >
-                          {successSavedId === prod.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Saved</span>
-                            </>
-                          ) : (
-                            <>
-                              <Save className="w-3.5 h-3.5" />
-                              <span>Update</span>
-                            </>
-                          )}
-                        </button>
+                        {permissions.canAdjustInventory ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveStock(prod.id)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors shadow-2xs ${
+                              successSavedId === prod.id
+                                ? 'bg-emerald-600 text-white'
+                                : isModified
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                          >
+                            {successSavedId === prod.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Saved</span>
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-3.5 h-3.5" />
+                                <span>Update</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] font-medium">Read Only</span>
+                        )}
                       </td>
                     </tr>
                   );

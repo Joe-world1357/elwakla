@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from './services/db';
 import { Session, User, Location, Product } from './types';
+import { getRolePermissions } from './services/auth';
 import { Header } from './components/common/Header';
 import { LoginView } from './components/auth/LoginView';
 import { OverviewView } from './components/dashboard/OverviewView';
@@ -12,7 +13,7 @@ import { BranchInventoryDrawer } from './components/locations/BranchInventoryDra
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'locations' | 'products'>('overview');
-  const [activeBranchId, setActiveBranchId] = useState<string>('LOC-001');
+  const [activeBranchId, setActiveBranchId] = useState<string>('');
 
   // Relational datasets loaded from AlWakalaDB
   const [users, setUsers] = useState<User[]>([]);
@@ -34,11 +35,13 @@ export default function App() {
     const loadedLocations = db.getLocations();
     setLocations(loadedLocations);
 
-    // If current active branch doesn't exist, fallback to first location
+    // If active branch doesn't exist, set to first location or blank if no locations
     if (loadedLocations.length > 0) {
       if (!loadedLocations.some((l) => l.id === activeBranchId)) {
         setActiveBranchId(loadedLocations[0].id);
       }
+    } else {
+      setActiveBranchId('');
     }
 
     const loadedProducts = db.getProducts();
@@ -64,6 +67,20 @@ export default function App() {
       window.removeEventListener('alwakala_db_change', handleCustomChange);
     };
   }, [loadDatabaseState]);
+
+  // Tab Access Guard based on IAM Role Permissions
+  useEffect(() => {
+    if (session) {
+      const perms = getRolePermissions(session.role);
+      if (activeTab === 'users' && !perms.canViewUsers) {
+        setActiveTab('overview');
+      } else if (activeTab === 'locations' && !perms.canViewLocations) {
+        setActiveTab('overview');
+      } else if (activeTab === 'products' && !perms.canViewCatalog) {
+        setActiveTab('overview');
+      }
+    }
+  }, [session, activeTab]);
 
   const handleLoginSuccess = (newSession: Session) => {
     setSession(newSession);
@@ -91,9 +108,11 @@ export default function App() {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const permissions = getRolePermissions(session.role);
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* Top Header & Navigation Tabs (SRS Section 4.1) */}
+      {/* Top Header & Navigation Tabs */}
       <Header
         session={session}
         locations={locations}
@@ -105,7 +124,7 @@ export default function App() {
         onResetDB={handleResetDatabase}
       />
 
-      {/* Main Viewport Content */}
+      {/* Main Viewport Content with IAM Role Enforcement */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'overview' && (
           <OverviewView
@@ -113,6 +132,7 @@ export default function App() {
             users={users}
             locations={locations}
             products={products}
+            permissions={permissions}
             activeBranchId={activeBranchId}
             onNavigateTab={setActiveTab}
             onOpenBranchDrawer={handleOpenBranchDrawer}
@@ -120,13 +140,20 @@ export default function App() {
         )}
 
         {activeTab === 'users' && (
-          <UsersView users={users} onRefresh={loadDatabaseState} />
+          <UsersView
+            users={users}
+            session={session}
+            permissions={permissions}
+            onRefresh={loadDatabaseState}
+          />
         )}
 
         {activeTab === 'locations' && (
           <LocationsView
             locations={locations}
             products={products}
+            session={session}
+            permissions={permissions}
             activeBranchId={activeBranchId}
             onSelectActiveBranch={setActiveBranchId}
             onRefresh={loadDatabaseState}
@@ -137,6 +164,8 @@ export default function App() {
           <ProductsView
             products={products}
             locations={locations}
+            session={session}
+            permissions={permissions}
             activeBranchId={activeBranchId}
             onRefresh={loadDatabaseState}
             onOpenBranchDrawer={handleOpenBranchDrawer}
@@ -150,6 +179,7 @@ export default function App() {
         onClose={() => setDrawerOpen(false)}
         location={drawerLocation}
         products={products}
+        permissions={permissions}
         onRefresh={loadDatabaseState}
       />
 
@@ -162,14 +192,18 @@ export default function App() {
             <span className="font-ar">منصة إدارة الفروع والمخزون</span>
           </div>
           <div className="flex items-center gap-3">
-            <span>AlWakalaDB v1.0 (LocalStorage Prototype)</span>
-            <span>·</span>
-            <button
-              onClick={handleResetDatabase}
-              className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            >
-              Reset Seed Data
-            </button>
+            <span>Clean In-Browser LocalStorage Database</span>
+            {permissions.canResetDatabase && (
+              <>
+                <span>·</span>
+                <button
+                  onClick={handleResetDatabase}
+                  className="text-indigo-600 hover:text-indigo-800 hover:underline"
+                >
+                  Reset to Clean Slate
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>

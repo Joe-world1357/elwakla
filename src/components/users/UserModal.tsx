@@ -59,7 +59,7 @@ export const UserModal: React.FC<UserModalProps> = ({
       setFullName('');
       setEmail('');
       setPhone('+201');
-      setPassword('password123');
+      setPassword('');
       setRole('ROLE_BRANCH_MGR');
       setIsActive(true);
     }

@@ -16,342 +16,17 @@ export const STORAGE_KEYS = {
   PRODUCTS: 'alwakala_products',
   INVENTORY: 'alwakala_branch_inventory',
   PRICES: 'alwakala_branch_prices',
+  VERSION: 'alwakala_db_version',
 } as const;
 
-// Default Seed Data
-const DEFAULT_USERS: User[] = [
-  {
-    id: 'USR-001',
-    username: 'admin',
-    email: 'admin@alwakala.com',
-    phone: '+201000000001',
-    password: 'password123',
-    role: 'ROLE_ADMIN',
-    isActive: true,
-    createdAt: '2026-10-12T00:00:00.000Z',
-  },
-  {
-    id: 'USR-002',
-    username: 'cairo_mgr',
-    email: 'mgr.cairo@alwakala.com',
-    phone: '+201000000002',
-    password: 'password123',
-    role: 'ROLE_BRANCH_MGR',
-    isActive: true,
-    createdAt: '2026-10-12T01:00:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    username: 'cashier1',
-    email: 'c1@alwakala.com',
-    phone: '+201000000003',
-    password: 'password123',
-    role: 'ROLE_CASHIER',
-    isActive: true,
-    createdAt: '2026-10-12T02:00:00.000Z',
-  },
-  {
-    id: 'USR-004',
-    username: 'keeper_alex',
-    email: 'wh.alex@alwakala.com',
-    phone: '+201000000004',
-    password: 'password123',
-    role: 'ROLE_WH_KEEPER',
-    isActive: true,
-    createdAt: '2026-10-12T03:00:00.000Z',
-  },
-  {
-    id: 'USR-005',
-    username: 'tariq_auditor',
-    email: 'tariq@alwakala.com',
-    phone: '+201000000005',
-    password: 'password123',
-    role: 'ROLE_AUDITOR',
-    isActive: false,
-    createdAt: '2026-10-12T04:00:00.000Z',
-  },
-];
+const CURRENT_DB_VERSION = '3.0-zero-demo-data';
 
-const DEFAULT_LOCATIONS: Location[] = [
-  {
-    id: 'LOC-001',
-    code: 'BR-CAIRO-01',
-    nameAr: 'فرع القاهرة الرئيسي',
-    nameEn: 'Cairo Flagship Branch',
-    type: 'RETAIL_BRANCH',
-    address: 'Downtown Cairo, Tahrir Square, Bldg 14',
-    phone: '+20220001111',
-    isActive: true,
-  },
-  {
-    id: 'LOC-002',
-    code: 'WH-MAIN-01',
-    nameAr: 'مركز التوزيع الرئيسي - العاشر من رمضان',
-    nameEn: '10th of Ramadan Distribution Hub',
-    type: 'DISTRIBUTION_HUB',
-    address: 'Industrial Zone 3, 10th of Ramadan City',
-    phone: '+20153300222',
-    isActive: true,
-  },
-  {
-    id: 'LOC-003',
-    code: 'BR-ALEX-01',
-    nameAr: 'فرع الإسكندرية البحري',
-    nameEn: 'Alexandria Coastal Branch',
-    type: 'RETAIL_BRANCH',
-    address: 'Corniche El-Nile, Smouha, Alexandria',
-    phone: '+20349003333',
-    isActive: true,
-  },
-  {
-    id: 'LOC-004',
-    code: 'WH-METALS-02',
-    nameAr: 'مستودع الكيماويات والدهانات المتخصص',
-    nameEn: 'Specialized Chemical & Paint Depot',
-    type: 'SPECIALIZED_WAREHOUSE',
-    address: 'Borg El-Arab Logistics Center',
-    phone: '+20345004444',
-    isActive: true,
-  },
-];
-
-const DEFAULT_PRODUCTS: Product[] = [
-  {
-    id: 'PRD-001',
-    sku: 'ELC-CBL-4MM',
-    primaryBarcode: '6291000123456',
-    nameAr: 'كابل كهرباء نحاس 4 مم معزول',
-    nameEn: 'Electrical Cable 4mm Copper Insulated',
-    category: 'Electrical',
-    unitOfMeasure: 'Meter',
-    minReorderLevel: 50,
-    avgCostPrice: 25.0,
-    defaultWholesalePrice: 35.0,
-    defaultRetailPrice: 45.0,
-    technicalAttributes: {
-      voltage: '220V',
-      gauge: '4mm',
-      color: 'Red',
-    },
-  },
-  {
-    id: 'PRD-002',
-    sku: 'ELC-BRK-32A',
-    primaryBarcode: '6291000123463',
-    nameAr: 'قاطع تيار كهربائي أوتوماتيك 32 أمبير',
-    nameEn: 'Circuit Breaker Miniature 32A',
-    category: 'Electrical',
-    unitOfMeasure: 'Piece',
-    minReorderLevel: 20,
-    avgCostPrice: 85.0,
-    defaultWholesalePrice: 110.0,
-    defaultRetailPrice: 135.0,
-    technicalAttributes: {
-      voltage: '380V',
-      gauge: '32 Ampere',
-      color: 'White/Grey',
-    },
-  },
-  {
-    id: 'PRD-003',
-    sku: 'PLM-PPR-32MM',
-    primaryBarcode: '6291000123470',
-    nameAr: 'ماسورة بولي بروبيلين PPR 32 مم 4 متر',
-    nameEn: 'PPR High Pressure Pipe 32mm (4m)',
-    category: 'Plumbing',
-    unitOfMeasure: 'Piece',
-    minReorderLevel: 40,
-    avgCostPrice: 42.0,
-    defaultWholesalePrice: 56.0,
-    defaultRetailPrice: 70.0,
-    technicalAttributes: {
-      diameter: '32mm (1 inch)',
-      pressureRating: 'PN20 / 20 Bar',
-      material: 'PPR Pure Random Copolymer',
-    },
-  },
-  {
-    id: 'PRD-004',
-    sku: 'PNT-EML-GLOSS',
-    primaryBarcode: '6291000123487',
-    nameAr: 'دهان زيتي لامع أبيض فائق النقاء',
-    nameEn: 'High-Gloss Acrylic Enamel Pure White',
-    category: 'Paints',
-    unitOfMeasure: 'Can',
-    minReorderLevel: 15,
-    avgCostPrice: 140.0,
-    defaultWholesalePrice: 175.0,
-    defaultRetailPrice: 215.0,
-    technicalAttributes: {
-      baseType: 'Oil-Based Alkyd',
-      finish: 'High Gloss Super Reflective',
-      volume: '3.75 Liters (1 Gallon)',
-    },
-  },
-  {
-    id: 'PRD-005',
-    sku: 'HDW-BLT-M10',
-    primaryBarcode: '6291000123494',
-    nameAr: 'طقم مسامير صلب مجلفن سداسي M10×50',
-    nameEn: 'Hex Head Galvanized Bolt Set M10x50',
-    category: 'Hardware',
-    unitOfMeasure: 'Box',
-    minReorderLevel: 30,
-    avgCostPrice: 60.0,
-    defaultWholesalePrice: 78.0,
-    defaultRetailPrice: 95.0,
-    technicalAttributes: {
-      dimensions: 'M10 x 50mm Thread',
-      grade: 'Grade 8.8 High Tensile Steel',
-    },
-  },
-  {
-    id: 'PRD-006',
-    sku: 'TLS-DRL-850W',
-    primaryBarcode: '6291000123500',
-    nameAr: 'شنيور دقاق احترافي 850 واط سرعتين',
-    nameEn: 'Impact Hammer Drill 850W Heavy Duty',
-    category: 'Tools',
-    unitOfMeasure: 'Piece',
-    minReorderLevel: 8,
-    avgCostPrice: 520.0,
-    defaultWholesalePrice: 640.0,
-    defaultRetailPrice: 750.0,
-    technicalAttributes: {
-      powerSource: 'Corded AC 220-240V',
-      wattage: '850 Watts Max Peak',
-      dimensions: 'Keyless Chuck 13mm',
-    },
-  },
-];
-
-const DEFAULT_INVENTORY: BranchInventory[] = [
-  // Cairo Flagship (LOC-001)
-  {
-    id: 'INV-001',
-    branchId: 'LOC-001',
-    productId: 'PRD-001',
-    onHand: 120,
-    reserved: 10,
-    available: 110,
-  },
-  {
-    id: 'INV-002',
-    branchId: 'LOC-001',
-    productId: 'PRD-002',
-    onHand: 45,
-    reserved: 5,
-    available: 40,
-  },
-  {
-    id: 'INV-003',
-    branchId: 'LOC-001',
-    productId: 'PRD-003',
-    onHand: 18, // Below minReorderLevel (40) -> Low stock warning!
-    reserved: 2,
-    available: 16,
-  },
-  {
-    id: 'INV-004',
-    branchId: 'LOC-001',
-    productId: 'PRD-004',
-    onHand: 28,
-    reserved: 0,
-    available: 28,
-  },
-  {
-    id: 'INV-005',
-    branchId: 'LOC-001',
-    productId: 'PRD-005',
-    onHand: 65,
-    reserved: 5,
-    available: 60,
-  },
-  {
-    id: 'INV-006',
-    branchId: 'LOC-001',
-    productId: 'PRD-006',
-    onHand: 4, // Below minReorderLevel (8) -> Low stock warning!
-    reserved: 1,
-    available: 3,
-  },
-
-  // Central Hub (LOC-002) - Bulk stocks
-  {
-    id: 'INV-007',
-    branchId: 'LOC-002',
-    productId: 'PRD-001',
-    onHand: 2500,
-    reserved: 200,
-    available: 2300,
-  },
-  {
-    id: 'INV-008',
-    branchId: 'LOC-002',
-    productId: 'PRD-002',
-    onHand: 450,
-    reserved: 30,
-    available: 420,
-  },
-  {
-    id: 'INV-009',
-    branchId: 'LOC-002',
-    productId: 'PRD-003',
-    onHand: 800,
-    reserved: 50,
-    available: 750,
-  },
-  {
-    id: 'INV-010',
-    branchId: 'LOC-002',
-    productId: 'PRD-004',
-    onHand: 200,
-    reserved: 10,
-    available: 190,
-  },
-
-  // Alexandria Coastal (LOC-003)
-  {
-    id: 'INV-011',
-    branchId: 'LOC-003',
-    productId: 'PRD-001',
-    onHand: 35, // Low stock!
-    reserved: 0,
-    available: 35,
-  },
-  {
-    id: 'INV-012',
-    branchId: 'LOC-003',
-    productId: 'PRD-004',
-    onHand: 12, // Low stock!
-    reserved: 2,
-    available: 10,
-  },
-];
-
-const DEFAULT_PRICES: BranchPriceOverride[] = [
-  {
-    id: 'PRC-001',
-    branchId: 'LOC-001',
-    productId: 'PRD-001',
-    overrideRetailPrice: 48.0,
-    overrideWholesalePrice: 37.0,
-  },
-  {
-    id: 'PRC-002',
-    branchId: 'LOC-001',
-    productId: 'PRD-006',
-    overrideRetailPrice: 775.0,
-    overrideWholesalePrice: 660.0,
-  },
-  {
-    id: 'PRC-003',
-    branchId: 'LOC-003',
-    productId: 'PRD-004',
-    overrideRetailPrice: 225.0,
-    overrideWholesalePrice: 185.0,
-  },
-];
+// Zero Demo Baseline: No mock accounts, no demo locations, no mock catalog
+const DEFAULT_USERS: User[] = [];
+const DEFAULT_LOCATIONS: Location[] = [];
+const DEFAULT_PRODUCTS: Product[] = [];
+const DEFAULT_INVENTORY: BranchInventory[] = [];
+const DEFAULT_PRICES: BranchPriceOverride[] = [];
 
 class AlWakalaDatabase {
   private listeners: Set<() => void> = new Set();
@@ -383,6 +58,14 @@ class AlWakalaDatabase {
   public ensureInitialized(): void {
     if (typeof window === 'undefined') return;
 
+    const storedVersion = localStorage.getItem(STORAGE_KEYS.VERSION);
+    if (storedVersion !== CURRENT_DB_VERSION) {
+      // Purge all legacy demo data and re-initialize with clean slate
+      this.resetToBaseline();
+      localStorage.setItem(STORAGE_KEYS.VERSION, CURRENT_DB_VERSION);
+      return;
+    }
+
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
     }
@@ -398,8 +81,6 @@ class AlWakalaDatabase {
     if (!localStorage.getItem(STORAGE_KEYS.PRICES)) {
       localStorage.setItem(STORAGE_KEYS.PRICES, JSON.stringify(DEFAULT_PRICES));
     }
-
-    // Ensure session key exists or is null (clean start on authentication screen)
   }
 
   public resetToBaseline(): void {
@@ -408,6 +89,7 @@ class AlWakalaDatabase {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
     localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(DEFAULT_INVENTORY));
     localStorage.setItem(STORAGE_KEYS.PRICES, JSON.stringify(DEFAULT_PRICES));
+    localStorage.setItem(STORAGE_KEYS.VERSION, CURRENT_DB_VERSION);
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     this.notify();
   }
@@ -533,6 +215,29 @@ class AlWakalaDatabase {
     return { success: res.success, isActive: res.user?.isActive };
   }
 
+  public deleteUser(id: string): { success: boolean; error?: string } {
+    const users = this.getUsers();
+    const target = users.find((u) => u.id === id);
+    if (!target) return { success: false, error: 'User not found in LocalStorage.' };
+
+    const currentSession = this.getSession();
+    if (currentSession && currentSession.userId === id) {
+      return { success: false, error: 'Cannot delete the currently authenticated active session user.' };
+    }
+
+    if (target.role === 'ROLE_ADMIN') {
+      const activeAdmins = users.filter((u) => u.role === 'ROLE_ADMIN');
+      if (activeAdmins.length <= 1) {
+        return { success: false, error: 'Cannot delete the only remaining System Administrator account.' };
+      }
+    }
+
+    const filtered = users.filter((u) => u.id !== id);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+    this.notify();
+    return { success: true };
+  }
+
   // --- Session Management (FR-AUTH-01, 02, 03) ---
   public getSession(): Session | null {
     try {
@@ -648,6 +353,27 @@ class AlWakalaDatabase {
     if (!loc) return { success: false };
     const res = this.updateLocation(id, { isActive: !loc.isActive });
     return { success: res.success, isActive: res.location?.isActive };
+  }
+
+  public deleteLocation(id: string): { success: boolean; error?: string } {
+    const locations = this.getLocations();
+    const target = locations.find((l) => l.id === id);
+    if (!target) return { success: false, error: 'Location not found.' };
+
+    const filtered = locations.filter((l) => l.id !== id);
+    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(filtered));
+
+    // Cascade: Clean up inventories and price overrides for deleted facility
+    const allInvs = this.getInventory();
+    const filteredInvs = allInvs.filter((inv) => inv.branchId !== id);
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(filteredInvs));
+
+    const allPrices = this.getPriceOverrides();
+    const filteredPrices = allPrices.filter((p) => p.branchId !== id);
+    localStorage.setItem(STORAGE_KEYS.PRICES, JSON.stringify(filteredPrices));
+
+    this.notify();
+    return { success: true };
   }
 
   // --- Product Catalog & Categories (Feature 3) ---

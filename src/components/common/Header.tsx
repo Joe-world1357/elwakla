@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Session, Location, UserRole } from '../../types';
 
+import { getRolePermissions, getRoleDisplayName } from '../../services/auth';
+
 interface HeaderProps {
   session: Session;
   locations: Location[];
@@ -38,6 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
+  const permissions = getRolePermissions(session.role);
+  const roleDisplay = getRoleDisplayName(session.role);
+
   const activeBranch = locations.find((l) => l.id === activeBranchId) || locations[0];
 
   const getRoleBadgeStyle = (role: UserRole) => {
@@ -51,17 +56,24 @@ export const Header: React.FC<HeaderProps> = ({
         return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'ROLE_CASHIER':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'ROLE_PURCHASER':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'ROLE_AUDITOR':
+        return 'bg-rose-100 text-rose-800 border-rose-200';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'users', label: 'Authentication & Users', icon: Users },
-    { id: 'locations', label: 'Branches & Warehouses', icon: Building2 },
-    { id: 'products', label: 'Product Catalog', icon: Package },
-  ] as const;
+  // IAM-Gated Navigation items
+  const allNavItems = [
+    { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, visible: permissions.canViewOverview },
+    { id: 'users' as const, label: 'Authentication & Users', icon: Users, visible: permissions.canViewUsers },
+    { id: 'locations' as const, label: 'Branches & Warehouses', icon: Building2, visible: permissions.canViewLocations },
+    { id: 'products' as const, label: 'Product Catalog', icon: Package, visible: permissions.canViewCatalog },
+  ];
+
+  const navItems = allNavItems.filter((item) => item.visible);
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
@@ -101,13 +113,18 @@ export const Header: React.FC<HeaderProps> = ({
                   <select
                     value={activeBranchId}
                     onChange={(e) => onBranchChange(e.target.value)}
-                    className="appearance-none bg-transparent text-xs font-semibold text-slate-800 pr-5 focus:outline-hidden cursor-pointer"
+                    disabled={locations.length === 0}
+                    className="appearance-none bg-transparent text-xs font-semibold text-slate-800 pr-5 focus:outline-hidden cursor-pointer disabled:cursor-not-allowed disabled:text-slate-400"
                   >
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.nameEn} ({loc.code})
-                      </option>
-                    ))}
+                    {locations.length === 0 ? (
+                      <option value="">No Branches Configured</option>
+                    ) : (
+                      locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.nameEn} ({loc.code})
+                        </option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown className="w-3 h-3 text-slate-400 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -133,46 +150,48 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Reset Database Button */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setResetConfirmOpen(!resetConfirmOpen)}
-                title="Reset LocalStorage to seed dataset"
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              {resetConfirmOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-50 text-left">
-                  <p className="text-xs font-medium text-slate-800">
-                    Reset baseline data?
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    This will reseed all users, branches, products, stock counts, and price overrides to factory baseline.
-                  </p>
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setResetConfirmOpen(false)}
-                      className="px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResetConfirmOpen(false);
-                        onResetDB();
-                      }}
-                      className="px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-sm hover:bg-red-700"
-                    >
-                      Reset Now
-                    </button>
+            {/* Reset Database Button (IAM-Gated: Only Admins/Owners) */}
+            {permissions.canResetDatabase && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setResetConfirmOpen(!resetConfirmOpen)}
+                  title="Reset LocalStorage to clean slate"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                {resetConfirmOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-50 text-left">
+                    <p className="text-xs font-medium text-slate-800">
+                      Reset database to clean baseline?
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      This will reset users, locations, and catalog to a clean baseline.
+                    </p>
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setResetConfirmOpen(false)}
+                        className="px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetConfirmOpen(false);
+                          onResetDB();
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-sm hover:bg-red-700"
+                      >
+                        Reset Now
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Logout Button (FR-AUTH-02) */}
             <button
@@ -247,13 +266,18 @@ export const Header: React.FC<HeaderProps> = ({
             <select
               value={activeBranchId}
               onChange={(e) => onBranchChange(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-md p-2 bg-slate-50"
+              disabled={locations.length === 0}
+              className="w-full text-xs border border-slate-300 rounded-md p-2 bg-slate-50 disabled:text-slate-400"
             >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.nameEn} ({loc.code})
-                </option>
-              ))}
+              {locations.length === 0 ? (
+                <option value="">No Branches Configured</option>
+              ) : (
+                locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.nameEn} ({loc.code})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

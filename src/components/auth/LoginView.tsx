@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../../services/db';
-import { Session, UserRole } from '../../types';
+import { Session, UserRole, User } from '../../types';
 import {
   Store,
   Lock,
   User as UserIcon,
-  Mail,
-  Phone,
   Eye,
   EyeOff,
   AlertCircle,
@@ -15,8 +13,9 @@ import {
   UserPlus,
   LogIn,
   Shield,
-  HardHat,
   Database,
+  Sparkles,
+  KeyRound,
 } from 'lucide-react';
 
 interface LoginViewProps {
@@ -24,17 +23,19 @@ interface LoginViewProps {
 }
 
 const REGISTRATION_ROLES: { role: UserRole; label: string; desc: string; icon: string }[] = [
-  { role: 'ROLE_CUSTOMER', label: 'Commercial Customer', desc: 'Wholesale & retail buyer account', icon: '🛒' },
-  { role: 'ROLE_CRAFTSMAN', label: 'Craftsman (حرفي)', desc: 'Contractor, technician & tradesman', icon: '🔧' },
-  { role: 'ROLE_CASHIER', label: 'Cashier Staff', desc: 'Point-of-sale terminal operator', icon: '💳' },
-  { role: 'ROLE_WH_KEEPER', label: 'Warehouse Keeper', desc: 'Inventory handling & stock keeper', icon: '📦' },
-  { role: 'ROLE_BRANCH_MGR', label: 'Branch Manager', desc: 'Store oversight & pricing controls', icon: '🏢' },
-  { role: 'ROLE_PURCHASER', label: 'Purchaser', desc: 'Supplier procurement & receiving', icon: '📋' },
-  { role: 'ROLE_AUDITOR', label: 'Auditor', desc: 'Compliance & stock inspection', icon: '🔍' },
-  { role: 'ROLE_ADMIN', label: 'System Admin', desc: 'Full enterprise administrative access', icon: '⚡' },
+  { role: 'ROLE_ADMIN', label: 'System Admin', desc: 'Full enterprise administrative access across all modules', icon: '⚡' },
+  { role: 'ROLE_OWNER', label: 'Enterprise Owner', desc: 'Enterprise executive owner with global governance', icon: '👑' },
+  { role: 'ROLE_BRANCH_MGR', label: 'Branch Manager', desc: 'Branch operations, localized pricing & inventory', icon: '🏢' },
+  { role: 'ROLE_WH_KEEPER', label: 'Warehouse Keeper', desc: 'Physical stock counts, receipts & warehouse operations', icon: '📦' },
+  { role: 'ROLE_PURCHASER', label: 'Purchasing Specialist', desc: 'Supplier procurement, receiving & catalog cost oversight', icon: '📋' },
+  { role: 'ROLE_AUDITOR', label: 'Inventory Auditor', desc: 'Read-only stock inspection & financial verification', icon: '🔍' },
+  { role: 'ROLE_CASHIER', label: 'POS Cashier', desc: 'Point-of-sale terminal operator (cost prices restricted)', icon: '💳' },
+  { role: 'ROLE_CUSTOMER', label: 'Commercial Customer', desc: 'Wholesale & retail buyer account (catalog browsing)', icon: '🛒' },
+  { role: 'ROLE_CRAFTSMAN', label: 'Craftsman (حرفي)', desc: 'Contractor, technician & tradesman tier', icon: '🔧' },
 ];
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
+  const [existingUsers, setExistingUsers] = useState<User[]>([]);
   const [activeMode, setActiveMode] = useState<'signin' | 'register'>('signin');
 
   // Sign In States
@@ -42,7 +43,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Registration States
   const [regFullName, setRegFullName] = useState('');
@@ -52,12 +52,49 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
-  const [regRole, setRegRole] = useState<UserRole>('ROLE_CUSTOMER');
+  const [regRole, setRegRole] = useState<UserRole>('ROLE_ADMIN');
   const [regTermsAccepted, setRegTermsAccepted] = useState(true);
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccessMessage, setRegSuccessMessage] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load existing accounts from LocalStorage
+  useEffect(() => {
+    const loaded = db.getUsers();
+    setExistingUsers(loaded);
+    if (loaded.length === 0) {
+      setActiveMode('register');
+      setRegRole('ROLE_ADMIN');
+    } else {
+      setActiveMode('signin');
+      setLoginIdentifier(loaded[0].username);
+    }
+  }, []);
+
+  // Quick template filler for rapid testing without typing
+  const handleFillAdminTemplate = () => {
+    setRegFullName('System Administrator');
+    setRegUsername('admin');
+    setRegEmail('admin@alwakala.com');
+    setRegPhone('+201000000001');
+    setRegPassword('password123');
+    setRegConfirmPassword('password123');
+    setRegRole('ROLE_ADMIN');
+    setRegError(null);
+  };
+
+  // Quick select an existing registered account to test that IAM role
+  const handleSelectExistingUser = (user: User) => {
+    setLoginIdentifier(user.username);
+    // If the password matches standard test password or was set, prefill for rapid IAM switching
+    if (user.password) {
+      setLoginPassword(user.password);
+    } else {
+      setLoginPassword('');
+    }
+    setLoginError(null);
+  };
 
   // Handle Login (FR-AUTH-01)
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -163,7 +200,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     }
 
     // Successfully registered in LocalStorage!
-    setRegSuccessMessage(`Account @${cleanUsername} created successfully in LocalStorage! Logging you in...`);
+    setRegSuccessMessage(`Account @${cleanUsername} (${regRole}) created successfully in LocalStorage! Logging you in...`);
+
+    // Refresh existing users
+    setExistingUsers(db.getUsers());
 
     // Auto-login into alwakala_session
     setTimeout(() => {
@@ -171,24 +211,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       onLoginSuccess(session);
     }, 600);
   };
-
-  const handleQuickLogin = (presetUsername: string, presetPass: string = 'password123') => {
-    setLoginIdentifier(presetUsername);
-    setLoginPassword(presetPass);
-    setLoginError(null);
-    const user = db.findUserByUsernameOrEmail(presetUsername);
-    if (user && user.isActive) {
-      const session = db.setSession(user);
-      onLoginSuccess(session);
-    }
-  };
-
-  const demoAccounts = [
-    { username: 'admin', role: 'ROLE_ADMIN', label: 'Admin (Full Access)' },
-    { username: 'cairo_mgr', role: 'ROLE_BRANCH_MGR', label: 'Cairo Branch Mgr' },
-    { username: 'cashier1', role: 'ROLE_CASHIER', label: 'Cashier Staff' },
-    { username: 'keeper_alex', role: 'ROLE_WH_KEEPER', label: 'Warehouse Keeper' },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
@@ -209,7 +231,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         {/* LocalStorage Engine Indicator */}
         <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-full px-3 py-0.5 mx-auto w-fit font-medium">
           <Database className="w-3 h-3 text-emerald-600" />
-          <span>In-Browser LocalStorage Database Engine Active</span>
+          <span>Browser LocalStorage Engine Active (Zero Demo Data)</span>
         </div>
       </div>
 
@@ -251,6 +273,60 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </div>
 
           <div className="p-6 sm:p-8">
+            {/* Zero demo data notice when no users exist */}
+            {existingUsers.length === 0 && (
+              <div className="mb-5 rounded-xl bg-indigo-50/90 border border-indigo-200/80 p-3.5 text-xs text-indigo-900 leading-relaxed">
+                <div className="flex items-center gap-2 font-bold text-indigo-950 mb-1">
+                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  <span>Clean State: No Demo Data</span>
+                </div>
+                <p className="text-[11px] text-indigo-800">
+                  LocalStorage has zero mock users. Create your first <strong>System Administrator</strong> or manager account below to get started.
+                </p>
+                {activeMode === 'register' && (
+                  <button
+                    type="button"
+                    onClick={handleFillAdminTemplate}
+                    className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-2xs"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Prefill Admin Details</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Quick IAM Role Switcher / Account Selector when accounts exist */}
+            {activeMode === 'signin' && existingUsers.length > 0 && (
+              <div className="mb-4 pb-3 border-b border-slate-100">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Select Registered Account to Test IAM Role:
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                  {existingUsers.map((u) => {
+                    const isSelected = loginIdentifier.toLowerCase() === u.username.toLowerCase();
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => handleSelectExistingUser(u)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all border ${
+                          isSelected
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold shadow-2xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-medium'
+                        }`}
+                      >
+                        <span>@{u.username}</span>
+                        <span className="text-[10px] px-1 py-0.2 rounded-sm bg-white border border-slate-200 text-slate-600 font-mono">
+                          {u.role.replace('ROLE_', '')}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* ===================== SIGN IN FORM ===================== */}
             {activeMode === 'signin' && (
               <form className="space-y-4" onSubmit={handleLoginSubmit}>
@@ -280,7 +356,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       required
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="e.g. admin or admin@alwakala.com"
+                      placeholder="e.g. admin or username"
                       className={`block w-full rounded-lg border pl-10 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden transition-colors ${
                         loginError
                           ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
@@ -328,20 +404,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   </div>
                 </div>
 
-                {/* Remember Me */}
-                <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Remember in LocalStorage</span>
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-mono">Mock JWT</span>
-                </div>
-
                 {/* Submit Sign In */}
                 <div>
                   <button
@@ -357,13 +419,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 {/* Switcher link */}
                 <div className="text-center pt-2">
                   <p className="text-xs text-slate-500">
-                    Don't have an account yet?{' '}
+                    Need a new account?{' '}
                     <button
                       type="button"
                       onClick={() => setActiveMode('register')}
                       className="font-semibold text-indigo-600 hover:underline"
                     >
-                      Register now
+                      Register here
                     </button>
                   </p>
                 </div>
@@ -413,7 +475,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       required
                       value={regUsername}
                       onChange={(e) => setRegUsername(e.target.value)}
-                      placeholder="e.g. ahmed_pro"
+                      placeholder="e.g. admin or manager"
                       className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 lowercase"
                     />
                   </div>
@@ -430,7 +492,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       required
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="ahmed@domain.com"
+                      placeholder="user@domain.com"
                       className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
@@ -453,7 +515,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 {/* Role Selection */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Select Account Role <span className="text-red-500">*</span>
+                    Select IAM Role <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={regRole}
@@ -483,7 +545,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                         required
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="Min 6 chars"
+                        placeholder="Min 6 characters"
                         className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                       />
                     </div>
@@ -537,7 +599,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                       className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>
-                      I agree to the Al-Wakala enterprise operational terms and store policy.
+                      I agree to the Al-Wakala enterprise operational terms and security policy.
                     </span>
                   </label>
                 </div>
@@ -555,47 +617,32 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 {/* Switcher back to sign in */}
-                <div className="text-center pt-2">
-                  <p className="text-xs text-slate-500">
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => setActiveMode('signin')}
-                      className="font-semibold text-indigo-600 hover:underline"
-                    >
-                      Sign In here
-                    </button>
-                  </p>
-                </div>
+                {existingUsers.length > 0 && (
+                  <div className="text-center pt-2">
+                    <p className="text-xs text-slate-500">
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setActiveMode('signin')}
+                        className="font-semibold text-indigo-600 hover:underline"
+                      >
+                        Sign In here
+                      </button>
+                    </p>
+                  </div>
+                )}
               </form>
             )}
 
-            {/* Quick Demo Credentials Banner */}
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Instant Demo Operator Access
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Default: password123</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {demoAccounts.map((demo) => (
-                  <button
-                    key={demo.username}
-                    type="button"
-                    onClick={() => handleQuickLogin(demo.username)}
-                    className="flex items-center justify-between p-2 text-left rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors group"
-                  >
-                    <div className="overflow-hidden">
-                      <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-600">
-                        {demo.username}
-                      </p>
-                      <p className="text-[10px] text-slate-500 truncate">{demo.label}</p>
-                    </div>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 shrink-0" />
-                  </button>
-                ))}
-              </div>
+            {/* Storage Info Footer */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <Shield className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Zero Demo Data Active</span>
+              </span>
+              <span className="text-slate-500 font-mono text-[10px]">
+                {existingUsers.length} account{existingUsers.length === 1 ? '' : 's'} registered
+              </span>
             </div>
           </div>
         </div>
