@@ -9,6 +9,7 @@ interface UserModalProps {
   userToEdit: User | null;
   onSave: (userData: {
     username: string;
+    fullName?: string;
     email: string;
     phone: string;
     password?: string;
@@ -36,6 +37,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   onSave,
 }) => {
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +48,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   useEffect(() => {
     if (userToEdit) {
       setUsername(userToEdit.username);
+      setFullName(userToEdit.fullName || '');
       setEmail(userToEdit.email);
       setPhone(userToEdit.phone);
       setPassword('');
@@ -53,6 +56,7 @@ export const UserModal: React.FC<UserModalProps> = ({
       setIsActive(userToEdit.isActive);
     } else {
       setUsername('');
+      setFullName('');
       setEmail('');
       setPhone('+201');
       setPassword('password123');
@@ -85,6 +89,7 @@ export const UserModal: React.FC<UserModalProps> = ({
 
     const res = onSave({
       username: username.trim(),
+      fullName: fullName.trim() || undefined,
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
       password: password.trim() ? password.trim() : undefined,
@@ -118,19 +123,34 @@ export const UserModal: React.FC<UserModalProps> = ({
           </div>
         )}
 
-        {/* Username */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-            Username <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="e.g. cairo_mgr"
-            className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          />
+        {/* Full Name & Username */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Ahmed Hassan"
+              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              Username <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. cairo_mgr"
+              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
         </div>
 
         {/* Email */}

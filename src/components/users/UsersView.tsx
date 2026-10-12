@@ -41,6 +41,7 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, onRefresh }) => {
 
   const handleSaveUser = (userData: {
     username: string;
+    fullName?: string;
     email: string;
     phone: string;
     password?: string;
@@ -168,8 +169,12 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, onRefresh }) => {
                           {user.username.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-semibold text-slate-900">{user.username}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{user.id}</div>
+                          <div className="font-semibold text-slate-900">
+                            {user.fullName || user.username}
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono">
+                            @{user.username} · {user.id}
+                          </div>
                         </div>
                       </div>
                     </td>

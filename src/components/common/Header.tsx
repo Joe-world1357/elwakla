@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-xs font-semibold text-slate-900 leading-tight">
-                  {session.username}
+                  {session.fullName || session.username}
                 </span>
                 <span
                   className={`inline-block text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-sm border ${getRoleBadgeStyle(

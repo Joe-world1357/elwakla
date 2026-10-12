@@ -12,6 +12,7 @@ export type UserRole =
 export interface User {
   id: string; // e.g. "USR-001"
   username: string;
+  fullName?: string;
   email: string;
   phone: string;
   password?: string;
@@ -24,6 +25,7 @@ export interface Session {
   token: string;
   userId: string;
   username: string;
+  fullName?: string;
   role: UserRole;
   loggedInAt: string;
 }

@@ -399,17 +399,7 @@ class AlWakalaDatabase {
       localStorage.setItem(STORAGE_KEYS.PRICES, JSON.stringify(DEFAULT_PRICES));
     }
 
-    // Default active session for quick demo if none exists
-    if (!localStorage.getItem(STORAGE_KEYS.SESSION)) {
-      const defaultSession: Session = {
-        token: 'mock-jwt-token-usr-001',
-        userId: 'USR-001',
-        username: 'admin',
-        role: 'ROLE_ADMIN',
-        loggedInAt: new Date().toISOString(),
-      };
-      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(defaultSession));
-    }
+    // Ensure session key exists or is null (clean start on authentication screen)
   }
 
   public resetToBaseline(): void {
@@ -418,14 +408,7 @@ class AlWakalaDatabase {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
     localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(DEFAULT_INVENTORY));
     localStorage.setItem(STORAGE_KEYS.PRICES, JSON.stringify(DEFAULT_PRICES));
-    const defaultSession: Session = {
-      token: 'mock-jwt-token-usr-001',
-      userId: 'USR-001',
-      username: 'admin',
-      role: 'ROLE_ADMIN',
-      loggedInAt: new Date().toISOString(),
-    };
-    localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(defaultSession));
+    localStorage.removeItem(STORAGE_KEYS.SESSION);
     this.notify();
   }
 
@@ -452,6 +435,7 @@ class AlWakalaDatabase {
 
   public createUser(userData: {
     username: string;
+    fullName?: string;
     email: string;
     phone: string;
     password?: string;
@@ -462,6 +446,7 @@ class AlWakalaDatabase {
     const cleanUsername = userData.username.trim();
     const cleanEmail = userData.email.trim().toLowerCase();
     const cleanPhone = userData.phone.trim();
+    const cleanFullName = userData.fullName?.trim();
 
     // Enforce Uniqueness (FR-USER-02)
     if (users.some((u) => u.username.toLowerCase() === cleanUsername.toLowerCase())) {
@@ -474,11 +459,16 @@ class AlWakalaDatabase {
       return { success: false, error: `Phone number "${cleanPhone}" is already associated with an account.` };
     }
 
-    const nextIndex = users.length + 1;
-    const newId = `USR-${String(nextIndex).padStart(3, '0')}`;
+    const maxIdNum = users.reduce((max, u) => {
+      const match = u.id.match(/\d+/);
+      return match ? Math.max(max, parseInt(match[0], 10)) : max;
+    }, 0);
+    const newId = `USR-${String(maxIdNum + 1).padStart(3, '0')}`;
+
     const newUser: User = {
       id: newId,
       username: cleanUsername,
+      fullName: cleanFullName,
       email: cleanEmail,
       phone: cleanPhone,
       password: userData.password || 'password123',
@@ -558,6 +548,7 @@ class AlWakalaDatabase {
       token: `mock-jwt-token-${user.id.toLowerCase()}-${Date.now()}`,
       userId: user.id,
       username: user.username,
+      fullName: user.fullName || user.username,
       role: user.role,
       loggedInAt: new Date().toISOString(),
     };
