@@ -1,0 +1,6 @@
+{
+  "name": "Al-Wakala Platform",
+  "description": "Enterprise multi-branch inventory, pricing, catalog, and user management platform powered by AlWakalaDB.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
